@@ -7,12 +7,13 @@ using namespace std;
 
 void iniciar_lp(Carro ***&);
 void liberar_lp(Carro ***&);
+void liberar_vec(vector<Carro *>);
 bool agregar_linea(Carro ***, int);
 bool agregar_linea_lazy(Carro ***, int);
 void ver(Carro ***, int);
 void ver_detalle(Carro ***, int);
 void ver_producidos(vector<Carro *>);
-bool trabajar(Carro ***, int, vector<Carro *>);
+bool trabajar(Carro ***, int, vector<Carro *> &);
 
 int main() {
   int lineas_activas = 0;
@@ -69,6 +70,7 @@ int main() {
       case 0:
         cout << "Saliendo...\n";
         liberar_lp(lineas_produccion);
+        liberar_vec(producidos);
         break;
 
       default:
@@ -104,6 +106,13 @@ void liberar_lp(Carro ***&lineas_produccion) {
   delete[] lineas_produccion;
 }
 
+void liberar_vec(vector<Carro *> vec) {
+  for (int i = 0; i < vec.size(); i += 1) {
+    cout << "Eliminando prod " << vec[i]->id() << '\n';
+    delete vec[i];
+  }
+}
+
 bool agregar_linea(Carro ***lineas_produccion, int lineas_activas) {
   if (lineas_activas >= 5) {
     return false;
@@ -114,7 +123,7 @@ bool agregar_linea(Carro ***lineas_produccion, int lineas_activas) {
   modelo->setMotor(new Motor());
   modelo->setPintura(new Pintura());
 
-  cout << "Informacion del carro modelo:\n" << modelo->info();
+  cout << "Informacion del carro modelo:\n" << modelo->id() << '\n';
   // agregar el modelo en la linea de produccion
   lineas_produccion[lineas_activas][0] = modelo;
   lineas_activas += 1;
@@ -131,7 +140,7 @@ bool agregar_linea_lazy(Carro ***lineas_produccion, int lineas_activas) {
   modelo->setMotor(new Motor(true, "electrico"));
   modelo->setPintura(new Pintura("rojo", "matte"));
 
-  cout << "Informacion del carro modelo:\n" << modelo->info();
+  cout << "Informacion del carro modelo:\n" << modelo->id() << '\n';
   // agregar el modelo en la linea de produccion
   lineas_produccion[lineas_activas][0] = modelo;
   return true;
@@ -154,12 +163,13 @@ void ver(Carro ***lineas_produccion, int lineas_activas) {
 
 void ver_detalle(Carro ***lineas_produccion, int lineas_activas) {
   for (int i = 0; i < lineas_activas; i += 1) {
-    for (int j = 0; j < 4; j += 1) {
+    cout << "Linea de produccion [" << i << "]\n";
+    for (int j = 1; j < 4; j += 1) {
       if (lineas_produccion[i][j] != NULL) {
         cout
-          << "Informacion del carro en linea #" << i
-          << ", paso #" << j
-          << ":\n" << lineas_produccion[i][j]->info();
+          << "Paso de produccion [" << j << "]\n"
+          << "Informacion de carro " << lineas_produccion[i][j]->id() << ":\n"
+          << lineas_produccion[i][j]->info();
       }
     }
     cout << '\n';
@@ -168,14 +178,49 @@ void ver_detalle(Carro ***lineas_produccion, int lineas_activas) {
 
 void ver_producidos(vector<Carro *> producidos) {
   for (int i = 0; i < producidos.size(); i += 1) {
-    cout << "Carro producido #" << i << ":\n" << producidos[i]->info();
+    cout << "Carro producido " << producidos[i]->id() << ":\n" << producidos[i]->info();
   }
 }
 
-bool trabajar(Carro ***lineas_produccion, int lineas_activas, vector<Carro *> producidos) {
+bool trabajar(Carro ***lineas_produccion, int lineas_activas, vector<Carro *> &producidos) {
   if (lineas_activas == 0) {
     return false;
   }
 
+  // revisar si las lineas de produccion estan vacias inicialmente
+  Carro *prototipo;
+  Carro *actual;
+  for (int i = 0; i < lineas_activas; i += 1) {
+    prototipo = lineas_produccion[i][0];
+    for (int j = 3; j > 0; j -= 1) {
+      actual = lineas_produccion[i][j];
+
+      if (actual == NULL) {
+        continue;
+      }
+
+      // agregar pintura
+      if (j == 3) {
+        actual->setPintura(prototipo->clonePintura());
+        producidos.push_back(actual);
+      }
+
+      // agregar motor
+      if (j == 2) {
+        actual->setMotor(prototipo->cloneMotor());
+      }
+
+      // agregar chassis
+      if (j == 1) {
+        actual->setChassis(prototipo->cloneChassis());
+      }
+
+      // pasar el auto a la siguiente linea de produccion
+      if (j == 1 || j == 2) {
+        lineas_produccion[i][j + 1] = actual;
+      }
+    }
+    lineas_produccion[i][1] = prototipo->clone();
+  }
   return true;
 }
